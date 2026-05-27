@@ -1,0 +1,480 @@
+
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.lead-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:13px 15px;margin-bottom:10px;transition:border-color 0.2s}
+.lead-card.active{border-color:var(--color-border-info)}
+.step-dot{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.log-box{max-height:130px;overflow-y:auto;font-family:var(--font-mono);font-size:11px}
+.status-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.mail-textarea{width:100%;box-sizing:border-box;font-size:12px;font-family:var(--font-sans);resize:vertical;min-height:90px;padding:8px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-secondary);color:var(--color-text-primary);line-height:1.5}
+.mail-textarea:focus{outline:none;border-color:var(--color-border-info)}
+.section-label{font-size:11px;font-weight:500;color:var(--color-text-secondary);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px}
+</style>
+
+<h2 class="sr-only">Tannlege Demo Generator — nettside, Vercel-publisering og e-postutsending med statussporing</h2>
+
+<div>
+  <!-- Header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 17px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:32px;height:32px;border-radius:var(--border-radius-md);background:var(--color-background-info);display:flex;align-items:center;justify-content:center">
+        <i class="ti ti-tooth" style="font-size:17px;color:var(--color-text-info)" aria-hidden="true"></i>
+      </div>
+      <div>
+        <div style="font-weight:500;font-size:14px;color:var(--color-text-primary)">Tannlege Demo Generator</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">Sheets → AI-nettside → Vercel → Gmail → Status oppdatert</div>
+      </div>
+    </div>
+    <button id="fetchBtn" onclick="fetchLeads()" style="display:flex;align-items:center;gap:5px;font-size:13px">
+      <i class="ti ti-table-import" style="font-size:14px" aria-hidden="true"></i>Hent leads
+    </button>
+  </div>
+
+  <!-- Main grid -->
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px">
+
+    <!-- LEFT: Leads -->
+    <div>
+      <div class="section-label" id="leadsLabel">Leads (0)</div>
+      <div id="leadsList">
+        <div style="background:var(--color-background-primary);border:0.5px dashed var(--color-border-secondary);border-radius:var(--border-radius-lg);padding:34px 18px;text-align:center">
+          <i class="ti ti-table-import" style="font-size:26px;color:var(--color-text-secondary);display:block;margin-bottom:8px" aria-hidden="true"></i>
+          <div style="font-size:13px;color:var(--color-text-secondary)">Klikk "Hent leads" for å laste inn frå Google Sheets</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Agents & Status -->
+    <div>
+
+      <!-- Pipeline steps -->
+      <div id="stepsBox" style="display:none;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:13px 15px;margin-bottom:12px">
+        <div class="section-label">Agentpipeline</div>
+        <div id="step-generate" style="display:flex;align-items:center;gap:9px;margin-bottom:9px;opacity:0.35">
+          <div class="step-dot" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary)">
+            <i class="ti ti-wand" style="font-size:12px;color:var(--color-text-secondary)" aria-hidden="true"></i>
+          </div>
+          <div style="flex:1"><span style="font-size:13px;color:var(--color-text-secondary)">Genererer nettside</span></div>
+          <span class="sbadge" style="font-size:11px;color:var(--color-text-info);display:none">pågår...</span>
+        </div>
+        <div id="step-deploy" style="display:flex;align-items:center;gap:9px;margin-bottom:9px;opacity:0.35">
+          <div class="step-dot" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary)">
+            <i class="ti ti-rocket" style="font-size:12px;color:var(--color-text-secondary)" aria-hidden="true"></i>
+          </div>
+          <div style="flex:1"><span style="font-size:13px;color:var(--color-text-secondary)">Publiserer til Vercel</span></div>
+          <span class="sbadge" style="font-size:11px;color:var(--color-text-info);display:none">pågår...</span>
+        </div>
+        <div id="step-email" style="display:flex;align-items:center;gap:9px;margin-bottom:9px;opacity:0.35">
+          <div class="step-dot" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary)">
+            <i class="ti ti-mail" style="font-size:12px;color:var(--color-text-secondary)" aria-hidden="true"></i>
+          </div>
+          <div style="flex:1"><span style="font-size:13px;color:var(--color-text-secondary)">Sender e-post via Gmail</span></div>
+          <span class="sbadge" style="font-size:11px;color:var(--color-text-info);display:none">pågår...</span>
+        </div>
+        <div id="step-update" style="display:flex;align-items:center;gap:9px;opacity:0.35">
+          <div class="step-dot" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary)">
+            <i class="ti ti-table" style="font-size:12px;color:var(--color-text-secondary)" aria-hidden="true"></i>
+          </div>
+          <div style="flex:1"><span style="font-size:13px;color:var(--color-text-secondary)">Oppdaterer status i Sheet</span></div>
+          <span class="sbadge" style="font-size:11px;color:var(--color-text-info);display:none">pågår...</span>
+        </div>
+      </div>
+
+      <!-- Email compose box -->
+      <div id="emailBox" style="display:none;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:13px 15px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="section-label" style="margin-bottom:0">E-post til kunde</div>
+          <span style="font-size:11px;color:var(--color-text-secondary)" id="emailToLabel"></span>
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:3px">Emne</div>
+          <input id="emailSubject" type="text" style="width:100%;box-sizing:border-box;font-size:12px" placeholder="E-postemne..." />
+        </div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:3px">Melding</div>
+          <textarea id="emailBody" class="mail-textarea" placeholder="E-posttekst..."></textarea>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="sendEmail()" id="sendEmailBtn" style="display:flex;align-items:center;gap:5px;font-size:13px;flex:1;justify-content:center">
+            <i class="ti ti-send" style="font-size:13px" aria-hidden="true"></i>Send e-post og oppdater status
+          </button>
+          <button onclick="regenerateEmail()" style="display:flex;align-items:center;gap:4px;font-size:12px">
+            <i class="ti ti-refresh" style="font-size:12px" aria-hidden="true"></i>Ny tekst
+          </button>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:11px 14px;margin-bottom:12px">
+        <div class="section-label">Aktivitetslogg</div>
+        <div class="log-box" id="logBox"><div style="color:var(--color-text-secondary)">_ venter...</div></div>
+      </div>
+
+      <!-- URL box -->
+      <div id="urlBox" style="display:none;background:var(--color-background-success);border:0.5px solid var(--color-border-success);border-radius:var(--border-radius-lg);padding:11px 14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:500;color:var(--color-text-success);margin-bottom:6px">
+          <i class="ti ti-circle-check" style="font-size:13px;vertical-align:-2px;margin-right:3px" aria-hidden="true"></i>Publisert på Vercel
+        </div>
+        <div style="display:flex;gap:7px;align-items:center">
+          <a id="demoLink" href="#" target="_blank" rel="noreferrer" style="font-size:12px;color:var(--color-text-success);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></a>
+          <button onclick="copyUrl()" id="copyBtn" style="flex-shrink:0;display:flex;align-items:center;gap:3px;font-size:12px">
+            <i class="ti ti-copy" style="font-size:12px" aria-hidden="true"></i>Kopier
+          </button>
+        </div>
+      </div>
+
+      <!-- Email sent confirmation -->
+      <div id="emailSentBox" style="display:none;background:var(--color-background-success);border:0.5px solid var(--color-border-success);border-radius:var(--border-radius-lg);padding:11px 14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:500;color:var(--color-text-success);margin-bottom:3px">
+          <i class="ti ti-mail-check" style="font-size:13px;vertical-align:-2px;margin-right:3px" aria-hidden="true"></i>E-post sendt og status oppdatert i sheeten
+        </div>
+        <div id="emailSentDetail" style="font-size:11px;color:var(--color-text-success)"></div>
+      </div>
+
+      <!-- Download fallback -->
+      <div id="downloadBox" style="display:none;background:var(--color-background-warning);border:0.5px solid var(--color-border-warning);border-radius:var(--border-radius-lg);padding:11px 14px;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--color-text-warning);margin-bottom:7px">
+          <i class="ti ti-alert-triangle" style="font-size:13px;vertical-align:-2px;margin-right:3px" aria-hidden="true"></i>Vercel-publisering ikkje fullført — last ned HTML manuelt
+        </div>
+        <button onclick="downloadHtml()" style="display:flex;align-items:center;gap:4px;font-size:12px">
+          <i class="ti ti-download" style="font-size:12px" aria-hidden="true"></i>Last ned HTML
+        </button>
+      </div>
+
+      <!-- Error -->
+      <div id="errorBox" style="display:none;background:var(--color-background-danger);border:0.5px solid var(--color-border-danger);border-radius:var(--border-radius-lg);padding:11px 14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:500;color:var(--color-text-danger);margin-bottom:3px">
+          <i class="ti ti-x" style="font-size:13px;vertical-align:-2px;margin-right:3px" aria-hidden="true"></i>Feil oppstod
+        </div>
+        <div id="errorMsg" style="font-size:12px;color:var(--color-text-danger)"></div>
+      </div>
+
+      <!-- Preview -->
+      <div id="previewBox" style="display:none;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden">
+        <div style="padding:8px 13px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary)">
+            <i class="ti ti-eye" style="font-size:13px;vertical-align:-2px;margin-right:3px" aria-hidden="true"></i>Forhåndsvisning
+          </div>
+          <a id="previewOpenLink" href="#" target="_blank" rel="noreferrer" style="font-size:11px;color:var(--color-text-info);display:none;align-items:center;gap:3px">
+            Opne <i class="ti ti-external-link" style="font-size:11px" aria-hidden="true"></i>
+          </a>
+        </div>
+        <iframe id="previewFrame" style="width:100%;height:240px;border:none;display:block" title="Demo forhåndsvisning" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MCP_DRIVE  = {type:"url",url:"https://drivemcp.googleapis.com/mcp/v1",name:"google-drive"};
+const MCP_VERCEL = {type:"url",url:"https://mcp.vercel.com",name:"vercel"};
+const MCP_GMAIL  = {type:"url",url:"https://gmailmcp.googleapis.com/mcp/v1",name:"gmail"};
+
+let leads=[], phase="idle", activeIdx=null, generatedHtml=null, currentDemoUrl=null;
+
+const STATUS = {
+  NONE:      {label:"Ikkje kontakta", color:"var(--color-text-secondary)",   bg:"var(--color-background-secondary)"},
+  DEMO_KLAR: {label:"Demo klar",      color:"var(--color-text-info)",         bg:"var(--color-background-info)"},
+  SENDT:     {label:"Demo sendt",     color:"var(--color-text-success)",      bg:"var(--color-background-success)"},
+  INTERESSERT:{label:"Interessert",   color:"var(--color-text-warning)",      bg:"var(--color-background-warning)"},
+};
+
+async function callClaude(messages, system, servers, maxTokens) {
+  const body = {model:"claude-sonnet-4-20250514",max_tokens:maxTokens||2000,messages};
+  if(system) body.system=system;
+  if(servers&&servers.length) body.mcp_servers=servers;
+  const res = await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
+  });
+  if(!res.ok){const t=await res.text();throw new Error("API "+res.status+": "+t.slice(0,200));}
+  return res.json();
+}
+const getText=d=>(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");
+function parseJson(txt){
+  const c=txt.replace(/```[\w]*\n?/g,"").replace(/```/g,"").trim();
+  const m=c.match(/(\{[\s\S]*\})/);
+  try{return JSON.parse(m?m[1]:c);}catch(e){throw new Error("JSON-parsing feilet: "+c.slice(0,120));}
+}
+function getUrl(txt){
+  const m=txt.match(/https?:\/\/[^\s"'\)\]>]*vercel\.app[^\s"'\)\]>]*/);
+  if(m) return m[0].replace(/[.,;!?]+$/,"");
+  const m2=txt.match(/https?:\/\/[^\s"'\)\]>]+/);
+  return m2?m2[0].replace(/[.,;!?]+$/,""):null;
+}
+
+function log(msg,type){
+  const box=document.getElementById("logBox");
+  if(box.children[0]&&box.children[0].textContent.trim()==="_ venter...") box.innerHTML="";
+  const d=document.createElement("div");
+  const t=new Date().toLocaleTimeString("no-NO");
+  d.style.cssText="margin-bottom:2px;color:"+(type==="error"?"var(--color-text-danger)":type==="success"?"var(--color-text-success)":type==="warn"?"var(--color-text-warning)":"var(--color-text-secondary)");
+  d.innerHTML='<span style="opacity:0.4">['+t+']</span> '+msg;
+  box.appendChild(d); box.scrollTop=9999;
+}
+
+const STEP_ORDER=["generate","deploy","email","update"];
+const STEP_ICONS={generate:"ti-wand",deploy:"ti-rocket",email:"ti-mail",update:"ti-table"};
+
+function setStep(id){
+  STEP_ORDER.forEach((s,i)=>{
+    const row=document.getElementById("step-"+s); if(!row) return;
+    const dot=row.querySelector(".step-dot");
+    const badge=row.querySelector(".sbadge");
+    const label=row.querySelector("span:not(.sbadge)");
+    const idx=STEP_ORDER.indexOf(id);
+    const isDone=id==="done"||(idx>i&&id!=="error");
+    const isActive=s===id&&id!=="done"&&id!=="error";
+    const isPending=idx<i&&id!=="done";
+    row.style.opacity=isPending?"0.35":"1";
+    if(isDone){
+      dot.style.background="var(--color-background-success)";dot.style.border="0.5px solid var(--color-border-success)";
+      dot.innerHTML='<i class="ti ti-check" style="font-size:11px;color:var(--color-text-success)" aria-hidden="true"></i>';
+      label.style.color="var(--color-text-success)";label.style.fontWeight="400";
+      if(badge) badge.style.display="none";
+    } else if(isActive){
+      dot.style.background="var(--color-background-info)";dot.style.border="0.5px solid var(--color-border-info)";
+      dot.innerHTML='<i class="ti ti-loader" style="font-size:11px;color:var(--color-text-info)" aria-hidden="true"></i>';
+      label.style.color="var(--color-text-primary)";label.style.fontWeight="500";
+      if(badge) badge.style.display="block";
+    } else {
+      dot.style.background="var(--color-background-secondary)";dot.style.border="0.5px solid var(--color-border-secondary)";
+      dot.innerHTML='<i class="ti '+STEP_ICONS[s]+'" style="font-size:11px;color:var(--color-text-secondary)" aria-hidden="true"></i>';
+      label.style.color="var(--color-text-secondary)";label.style.fontWeight="400";
+      if(badge) badge.style.display="none";
+    }
+  });
+}
+
+function getStatusPill(lead){
+  let key="NONE";
+  const s=(lead.status||"").toLowerCase();
+  if(s.includes("sendt")||s.includes("demo sendt")) key="SENDT";
+  else if(lead.demoNettside&&lead.demoNettside.trim()) key="DEMO_KLAR";
+  else if(s.includes("interessert")) key="INTERESSERT";
+  const st=STATUS[key];
+  return `<span style="display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:500;background:${st.bg};color:${st.color}">${st.label}</span>`;
+}
+
+function renderLeads(){
+  document.getElementById("leadsLabel").textContent="Leads ("+leads.length+")";
+  const list=document.getElementById("leadsList");
+  if(!leads.length) return;
+  list.innerHTML="";
+  leads.forEach((lead,i)=>{
+    const card=document.createElement("div");
+    card.className="lead-card"+(activeIdx===i?" active":"");
+    card.id="lead-card-"+i;
+    const hasDemo=lead.demoNettside&&lead.demoNettside.trim();
+    const isSent=(lead.status||"").toLowerCase().includes("sendt");
+    card.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px">
+        <div style="font-weight:500;font-size:13px;color:var(--color-text-primary)">${lead.selskapsnavn||"—"}</div>
+        ${getStatusPill(lead)}
+      </div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:1px">
+        <i class="ti ti-user" style="font-size:11px;vertical-align:-1px;margin-right:2px" aria-hidden="true"></i>${lead.kontaktperson||"—"} · ${lead.rolle||"—"}
+      </div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:1px">
+        <i class="ti ti-phone" style="font-size:11px;vertical-align:-1px;margin-right:2px" aria-hidden="true"></i>${lead.telefon||"—"}
+      </div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">
+        <i class="ti ti-mail" style="font-size:11px;vertical-align:-1px;margin-right:2px" aria-hidden="true"></i>${lead.epost||"—"}
+      </div>
+      ${hasDemo
+        ? `<div style="margin-bottom:8px;padding:6px 10px;background:var(--color-background-info);border:0.5px solid var(--color-border-info);border-radius:var(--border-radius-md)">
+            <div style="font-size:10px;color:var(--color-text-info);margin-bottom:2px;font-weight:500">Demo-URL</div>
+            <a href="${lead.demoNettside}" target="_blank" rel="noreferrer" style="font-size:11px;color:var(--color-text-info);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block">${lead.demoNettside}</a>
+           </div>`
+        : ""}
+      <div style="display:flex;gap:7px">
+        ${!hasDemo
+          ? `<button onclick="processLead(${i})" id="gen-btn-${i}" style="flex:1;justify-content:center;display:flex;align-items:center;gap:4px;font-size:12px">
+              <i class="ti ti-wand" style="font-size:12px" aria-hidden="true"></i>Generer &amp; publiser
+             </button>`
+          : `<button onclick="processLead(${i})" id="gen-btn-${i}" style="display:flex;align-items:center;gap:4px;font-size:12px">
+              <i class="ti ti-refresh" style="font-size:12px" aria-hidden="true"></i>Ny demo
+             </button>`}
+        ${hasDemo&&!isSent
+          ? `<button onclick="openEmailCompose(${i})" id="mail-btn-${i}" style="flex:1;justify-content:center;display:flex;align-items:center;gap:4px;font-size:12px">
+              <i class="ti ti-send" style="font-size:12px" aria-hidden="true"></i>Send demo per e-post
+             </button>`
+          : ""}
+        ${isSent
+          ? `<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--color-text-success)">
+              <i class="ti ti-mail-check" style="font-size:13px" aria-hidden="true"></i>E-post sendt
+             </div>`
+          : ""}
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+async function fetchLeads(){
+  if(phase==="fetching"||phase==="proc") return;
+  phase="fetching";
+  const btn=document.getElementById("fetchBtn");
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader" style="font-size:13px" aria-hidden="true"></i> Henter...';
+  document.getElementById("errorBox").style.display="none";
+  log("Kobler til Google Drive...");
+  try{
+    const r=await callClaude([{role:"user",content:`Finn Google Sheets-filen "Tannlege klinikker leads" i Google Drive. Les alle rader og returner BARE JSON (ingen markdown):
+{"leads":[{"row":2,"kontaktperson":"","rolle":"","epost":"","selskapsnavn":"","nettside":"","telefon":"","status":"","demoNettside":""}]}`}],
+    "Returner alltid ren JSON uten markdown, kodeblokker eller forklaring.",[MCP_DRIVE],2000);
+    log("Data mottatt frå Google Drive","success");
+    const txt=getText(r); const data=parseJson(txt); leads=data.leads||[];
+    if(!leads.length) throw new Error("Ingen leads funnet i arket");
+    renderLeads(); log(leads.length+" lead(s) lasta inn","success"); phase="ready";
+  } catch(e){ log(e.message,"error"); showError(e.message); phase="idle"; }
+  btn.disabled=false; btn.innerHTML='<i class="ti ti-refresh" style="font-size:13px" aria-hidden="true"></i> Oppdater leads';
+}
+
+async function processLead(idx){
+  if(phase==="proc") return;
+  const lead=leads[idx]; activeIdx=idx; phase="proc";
+  generatedHtml=null; currentDemoUrl=null;
+  document.getElementById("stepsBox").style.display="block";
+  document.getElementById("urlBox").style.display="none";
+  document.getElementById("emailBox").style.display="none";
+  document.getElementById("emailSentBox").style.display="none";
+  document.getElementById("downloadBox").style.display="none";
+  document.getElementById("errorBox").style.display="none";
+  document.getElementById("previewBox").style.display="none";
+  renderLeads(); setStep("generate");
+  log("--- Starter pipeline for "+lead.selskapsnavn+" ---");
+
+  try{
+    // 1. Generate
+    log("Genererer demo-nettside...");
+    const genR=await callClaude([{role:"user",content:`Lag ein komplett, vakker demo-nettside for tannlegeklinikken:
+Klinikk: ${lead.selskapsnavn}
+Kontakt: ${lead.kontaktperson||""} (${lead.rolle||""})
+Tlf: ${lead.telefon||""}
+E-post: ${lead.epost||""}
+Eksisterande nettside: ${lead.nettside||"ingen"}
+
+Krav: Enkeltfil HTML, inline CSS, norsk tekst. Fargepalett: #FFFFFF + #1B3F6B (blå) + #C5A55A (gull). Seksjoner: Hero med CTA-knapp, 6 tenester med ikon-SVGar, Om klinikken, Kontaktskjema-placeholder med tlf/epost, Footer. CSS-animasjonar. RETURNER BERRE REN HTML.`}],
+    "Ekspert på premium webdesign for norske helseinstitusjoner. Returner KUN rein HTML.",[],8000);
+    let html=getText(genR).trim();
+    if(html.startsWith("```")) html=html.replace(/^```\w*\n?/,"").replace(/\n?```$/,"");
+    if(!html.toLowerCase().includes("<html")&&!html.includes("<!DOCTYPE")) throw new Error("Ugyldig HTML generert");
+    generatedHtml=html;
+    document.getElementById("previewFrame").srcdoc=html;
+    document.getElementById("previewBox").style.display="block";
+    log("Nettside generert","success");
+
+    // 2. Deploy
+    setStep("deploy"); log("Publiserer til Vercel...");
+    const slug=(lead.selskapsnavn||"klinikk").toLowerCase()
+      .replace(/æ/g,"ae").replace(/ø/g,"o").replace(/å/g,"a")
+      .replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"").slice(0,35);
+    const pname="demo-"+slug;
+    const depR=await callClaude([{role:"user",content:`Distribuer denne HTML-fila som eit nytt statisk Vercel-prosjekt kalla "${pname}".\n\nFil: index.html\nInnhald:\n${html}\n\nBruk deploy_to_vercel. Returner berre URL.`}],
+    "Bruk Vercel MCP for statiske HTML-filer. Returner KUN URL.",[MCP_VERCEL],2000);
+    const depTxt=getText(depR); log("Vercel: "+depTxt.slice(0,100));
+    const url=getUrl(depTxt);
+    if(url){
+      currentDemoUrl=url;
+      leads[idx].demoNettside=url;
+      document.getElementById("demoLink").href=url; document.getElementById("demoLink").textContent=url;
+      document.getElementById("urlBox").style.display="block";
+      document.getElementById("previewOpenLink").href=url; document.getElementById("previewOpenLink").style.display="flex";
+      log("Publisert: "+url,"success");
+      // Prepare email compose
+      await openEmailCompose(idx, true);
+    } else {
+      log("Vercel-URL ikkje funnet — last ned HTML manuelt","warn");
+      document.getElementById("downloadBox").style.display="block";
+      setStep("done");
+    }
+  } catch(e){ log(e.message,"error"); showError(e.message); if(generatedHtml) document.getElementById("downloadBox").style.display="block"; }
+  renderLeads(); phase="ready";
+}
+
+async function openEmailCompose(idx, autoGenerate){
+  const lead=leads[idx]; activeIdx=idx;
+  const url=lead.demoNettside||currentDemoUrl||"";
+  document.getElementById("emailToLabel").textContent=lead.epost||"";
+  document.getElementById("emailBox").style.display="block";
+  if(autoGenerate||!document.getElementById("emailBody").value){
+    await generateEmailDraft(lead, url);
+  }
+  document.getElementById("emailBox").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+
+async function generateEmailDraft(lead, url){
+  const subjectEl=document.getElementById("emailSubject");
+  const bodyEl=document.getElementById("emailBody");
+  subjectEl.value="Genererer..."; bodyEl.value="Genererer e-post...";
+  log("Genererer personleg e-postutkast...");
+  try{
+    const r=await callClaude([{role:"user",content:`Skriv ein kort, profesjonell og personleg sals-e-post på norsk til ${lead.kontaktperson||"dagleg leder"} ved ${lead.selskapsnavn}. 
+Fortel at vi har laga ein gratis demo av eit nytt, moderne nettsted for klinikken deira.
+Demo-URL: ${url}
+Tilby eit uformelt møte for å vise korleis vi kan oppgradere nettsida.
+Hald det kort (3-4 avsnitt). Skriv i eit venleg, direkte tonefall.
+RETURNER BERRE: {"subject":"...","body":"..."} som rein JSON.`}],
+    "Returner KUN JSON med subject og body. Ingen markdown.",[],1000);
+    const txt=getText(r);
+    const data=parseJson(txt);
+    subjectEl.value=data.subject||"Demo av ny nettside til "+lead.selskapsnavn;
+    bodyEl.value=data.body||"";
+    log("E-postutkast klart","success");
+  } catch(e){ log("Kunne ikkje generere e-post: "+e.message,"warn"); subjectEl.value="Demo av ny nettside til "+(lead.selskapsnavn||"dykkar klinikk"); bodyEl.value=""; }
+}
+
+async function regenerateEmail(){
+  const lead=leads[activeIdx]; if(!lead) return;
+  const url=lead.demoNettside||currentDemoUrl||"";
+  await generateEmailDraft(lead, url);
+}
+
+async function sendEmail(){
+  const lead=leads[activeIdx]; if(!lead) return;
+  const subject=document.getElementById("emailSubject").value.trim();
+  const body=document.getElementById("emailBody").value.trim();
+  const to=lead.epost;
+  if(!subject||!body||!to){ log("Mangler emne, tekst eller e-postadresse","warn"); return; }
+
+  const btn=document.getElementById("sendEmailBtn");
+  btn.disabled=true; btn.innerHTML='<i class="ti ti-loader" style="font-size:13px" aria-hidden="true"></i> Sender...';
+  document.getElementById("stepsBox").style.display="block";
+  setStep("email"); log("Sender e-post til "+to+"...");
+
+  try{
+    // Send via Gmail MCP
+    await callClaude([{role:"user",content:`Send denne e-posten via Gmail:
+Til: ${to}
+Emne: ${subject}
+Melding:
+${body}
+
+Bruk Gmail MCP til å sende e-posten no.`}],
+    "Du sender e-postar via Gmail MCP. Utfør sendinga no.",[MCP_GMAIL],1000);
+    log("E-post sendt til "+to,"success");
+
+    // Update sheet status
+    setStep("update"); log("Oppdaterer status i Google Sheet...");
+    const statusText="Demo sendt";
+    await callClaude([{role:"user",content:`Oppdater "Tannlege klinikker leads" i Google Drive. Finn rada der selskapsnavn er "${lead.selskapsnavn}" og oppdater:
+- Kolonne "status": "${statusText}"
+- Kolonne "demo nettside": "${lead.demoNettside||currentDemoUrl||""}"
+Gjør dette no.`}],
+    "Oppdater Google Sheets via Drive MCP.",[MCP_DRIVE],1000);
+    log("Status oppdatert til '"+statusText+"' i sheeten","success");
+
+    leads[activeIdx].status=statusText;
+    setStep("done");
+    document.getElementById("emailBox").style.display="none";
+    document.getElementById("emailSentBox").style.display="block";
+    document.getElementById("emailSentDetail").textContent="Sendt til "+to+" · Status: "+statusText;
+    renderLeads();
+  } catch(e){
+    log("Feil ved sending: "+e.message,"error"); showError(e.message);
+  }
+  btn.disabled=false; btn.innerHTML='<i class="ti ti-send" style="font-size:13px" aria-hidden="true"></i>Send e-post og oppdater status';
+}
+
+function showError(msg){ document.getElementById("errorMsg").textContent=msg; document.getElementById("errorBox").style.display="block"; }
+function copyUrl(){ if(!currentDemoUrl) return; navigator.clipboard.writeText(currentDemoUrl); const b=document.getElementById("copyBtn"); b.innerHTML='<i class="ti ti-check" style="font-size:12px" aria-hidden="true"></i>Kopiert'; setTimeout(()=>{b.innerHTML='<i class="ti ti-copy" style="font-size:12px" aria-hidden="true"></i>Kopier';},2000); }
+function downloadHtml(){ if(!generatedHtml) return; const lead=leads[activeIdx]||{}; const slug=(lead.selskapsnavn||"klinikk").toLowerCase().replace(/\s+/g,"-"); const blob=new Blob([generatedHtml],{type:"text/html"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="demo-"+slug+".html"; a.click(); }
+</script>
